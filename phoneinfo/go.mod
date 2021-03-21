@@ -1,3 +1,3 @@
-module phoneinfo
+module dev
 
 go 1.15

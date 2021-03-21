@@ -1,4 +1,4 @@
-package phoneinfo
+package dev
 
 import (
 	"testing"

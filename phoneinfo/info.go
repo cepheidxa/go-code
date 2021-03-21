@@ -1,7 +1,9 @@
-package phoneinfo
+package dev
 
 import (
 	"fmt"
+	"log"
+	"os/exec"
 )
 
 const (
@@ -23,4 +25,23 @@ func Arch() int {
 
 func T() {
 	fmt.Println("T")
+}
+
+func SetProp(name, value string) error {
+	cmd := exec.Command("setprop " + name + " " + value)
+	err := cmd.Run()
+	if err != nil {
+		log.Fatal(err)
+	}
+	return err
+}
+
+func GetProp(name string) string {
+	cmd := exec.Command("getprop " + name)
+	err := cmd.Run()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return cmd.Stdout
 }

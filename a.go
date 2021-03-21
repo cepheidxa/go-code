@@ -1,11 +1,11 @@
 package main
 
 import (
-	"./phoneinfo"
+	"./dev"
 	"fmt"
 )
 
 func main() {
 	fmt.Println("This is only a test file")
-	fmt.Println(phoneinfo.Platform())
+	fmt.Println(dev.Platform())
 }
