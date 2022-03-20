@@ -19,11 +19,62 @@ type Consumer struct {
 
 var inotify_consumers []Consumer
 
+type mountinfo struct {
+	path string
+	Dev  uint64
+	Ino  uint64
+}
+
+func (info *mountinfo) Dump() {
+	fmt.Printf("%s\tDev:%d\tIno:%d\n", info.path, info.Dev, info.Ino)
+}
+
+func read_mount_info() []mountinfo {
+	path := "/proc/mounts"
+	fd, err := os.Open(path)
+	if err != nil {
+		log.Fatalf("read file %v error: %v\n", path, err)
+	}
+	defer fd.Close()
+	reader := bufio.NewReader(fd)
+	line, err := reader.ReadString('\n')
+	var infos []mountinfo
+	for len(line) > 0 {
+		if err != nil {
+			break
+		}
+		dir := regexp.MustCompile("[[:space:]]+").Split(line, 3)[1]
+		if strings.HasPrefix(dir, "/") {
+			var info mountinfo
+			stat, err := getinode(dir)
+			if err == nil {
+				info.path = dir
+				info.Dev = stat.Dev
+				info.Ino = stat.Ino
+			}
+			infos = append(infos, info)
+		}
+
+		line, err = reader.ReadString('\n')
+	}
+	return infos
+}
+
+func getinode(path string) (syscall.Stat_t, error) {
+	var stat syscall.Stat_t
+	err := syscall.Lstat(path, &stat)
+	if err != nil {
+		return stat, err
+	}
+	return stat, nil
+}
+
 func get_ruid(pid string) string {
 	path := fmt.Sprintf("/proc/%s/status", pid)
 	fd, err := os.Open(path)
 	if err != nil {
-		log.Fatalf("read file %v error: %v\n", path, err)
+		//log.Fatalf("read file %v error: %v\n", path, err)
+		return ""
 	}
 	defer fd.Close()
 	reader := bufio.NewReader(fd)
@@ -47,7 +98,8 @@ func get_ruid(pid string) string {
 func readfile(path string) string {
 	fd, err := os.Open(path)
 	if err != nil {
-		log.Fatalf("read file %v error: %v\n", path, err)
+		//log.Fatalf("read file %v error: %v\n", path, err)
+		return ""
 	}
 	defer fd.Close()
 	buf := make([]byte, 4096)
@@ -72,7 +124,8 @@ func check_pid_inotify_info(pid string) {
 	path := fmt.Sprintf("/proc/%v/fd", pid)
 	files, err := os.ReadDir(path)
 	if err != nil {
-		log.Fatal(err)
+		//log.Fatal(err)
+		return
 	}
 	var consumer Consumer
 	consumer.pid = pid
@@ -84,7 +137,8 @@ func check_pid_inotify_info(pid string) {
 		path := fmt.Sprintf("%s/%s", path, file.Name())
 		size, err := syscall.Readlink(path, buf)
 		if err != nil {
-			log.Fatalf("readline %s error: %v\n", path, err)
+			//log.Fatalf("readline %s error: %v\n", path, err)
+			continue
 		}
 		if size <= 0 {
 			continue
@@ -96,7 +150,8 @@ func check_pid_inotify_info(pid string) {
 
 		infofd, err := os.Open(fmt.Sprintf("/proc/%s/fdinfo/%s", pid, file.Name()))
 		if err != nil {
-			log.Fatalln(err)
+			//log.Fatalln(err)
+			continue
 		}
 		defer infofd.Close()
 		reader := bufio.NewReader(infofd)
@@ -139,4 +194,9 @@ func main() {
 		check_pid_inotify_info(file.Name())
 	}
 	print_info()
+
+	infos := read_mount_info()
+	for _, info := range infos {
+		info.Dump()
+	}
 }
